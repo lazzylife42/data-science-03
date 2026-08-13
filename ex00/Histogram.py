@@ -1,47 +1,41 @@
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import sys
 from pathlib import Path
+ROOT = Path(__file__).parents[1]
+sys.path.append(str(ROOT))
 
-p = Path(__file__).parents[1]
+from utils.utils import load_dataset
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-def load_dataset(path: Path) -> pd.DataFrame:
-	if not path.exists():
-		raise FileNotFoundError(f"Fichier introuvable : {path}")
-	return pd.read_csv(path)
+
+def plot_grid(columns, plot_func, nrows=6, ncols=5):
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(20, 24))
+    axes = axes.flatten()
+
+    for i, col in enumerate(columns):
+        plot_func(col, axes[i])
+        axes[i].set_title(col)
+
+    plt.tight_layout()
+    plt.show()
+
 
 def main():
-	df_test = load_dataset(p / "Test_knight.csv")
-	df_train = load_dataset(p / "Train_knight.csv")
+    df_test = load_dataset(ROOT / "Test_knight.csv")
+    df_train = load_dataset(ROOT / "Train_knight.csv")
 
-	print(f"[df test]\n{df_test.dtypes}")
-	print("="*25)
-	print(f"[df train]\n{df_train.dtypes}")
+    plot_grid(
+        df_test.columns,
+        lambda col, ax: sns.histplot(data=df_test[col], bins=30, ax=ax)
+    )
 
-	#1 On veut voir la distribution du DF de test
-	fig, axes = plt.subplots(nrows=6, ncols=5, figsize=(20, 24))
-	axes = axes.flatten()
+    def plot_overlay(col, ax):
+        sns.histplot(data=df_test[col], bins=30, ax=ax, label="Test", stat="density")
+        sns.histplot(data=df_train[col], bins=30, ax=ax, label="Train", stat="density")
+        ax.legend()
 
-	for i, col in enumerate(df_test.columns):
-		sns.histplot(data=df_test[col], bins=30, ax=axes[i])
-		axes[i].set_title(col)
-
-	plt.tight_layout()
-	plt.show()
-
-	#2 On regarde si la distribution change en les donnees de test et de train
-	fig, axes = plt.subplots(nrows=6, ncols=5, figsize=(20, 24))
-	axes = axes.flatten()
-
-	for i, col in enumerate(df_test.columns):
-		sns.histplot(data=df_test[col], bins=30, ax=axes[i], label="Test", stat="density")
-		sns.histplot(data=df_train[col], bins=30, ax=axes[i], label="Train", stat="density")
-		axes[i].set_title(col)
-		axes[i].legend()
-
-	plt.tight_layout()
-	plt.show()
+    plot_grid(df_test.columns, plot_overlay)
 
 
 if __name__ == "__main__":
-	main()
+    main()
