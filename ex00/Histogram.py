@@ -9,7 +9,7 @@ import seaborn as sns
 
 
 def plot_grid(columns, plot_func, nrows=6, ncols=5):
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(20, 24))
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(12, 12))
     axes = axes.flatten()
 
     for i, col in enumerate(columns):

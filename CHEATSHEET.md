@@ -81,8 +81,28 @@ Split classique : 70-80% train, 20-30% test (puis re-split train en train/valida
 
 ```python
 from sklearn.model_selection import train_test_split
-train, val = train_test_split(df, test_size=0.2, random_state=42)
+training, validation = train_test_split(
+    df_train,
+    test_size=0.2,
+    stratify=df_train["knight"],
+    random_state=42
+)
 ```
+
+- `stratify=col` : garde la même proportion de chaque classe dans train et validation. Sans ça, sur un petit dataset, un split random peut accidentellement déséquilibrer les classes entre les deux fichiers et fausser l'évaluation.
+- `random_state=42` : rend le split reproductible (même résultat à chaque run).
+
+**Vérifier que le split n'a pas biaisé les proportions** (utile en défense) :
+```python
+proportions = pd.DataFrame({
+    "Avant": df_train["knight"].value_counts(normalize=True),
+    "Training": training["knight"].value_counts(normalize=True),
+    "Validation": validation["knight"].value_counts(normalize=True),
+})
+proportions.T.plot(kind="bar", color=["red", "blue"])
+plt.xticks(rotation=45, ha="right")  # labels lisibles si plusieurs catégories
+```
+Si les barres sont quasi identiques entre les 3 groupes → le split ne biaise pas la distribution des classes, le score de validation sera représentatif.
 
 ---
 
@@ -104,6 +124,24 @@ print(df.dtypes)
 ### Sélectionner uniquement les colonnes numériques (exclure la target)
 ```python
 features = df.select_dtypes(include="number").columns
+```
+
+### Scatterplot avec hue (visualiser la séparabilité de deux features)
+```python
+sns.scatterplot(data=df, x="feat1", y="feat2",
+                 hue="target_col", palette={"Classe1": "red", "Classe2": "blue"})
+```
+`hue` colore chaque point selon la valeur d'une colonne catégorielle (assigne une couleur par classe unique + légende automatique). Sert à visualiser si deux features séparent bien les classes (nuages distincts) ou les mélangent (nuages superposés) — les features les plus/moins corrélées avec la target (cf. `correlation_factor`) donnent respectivement les paires qui séparent/mélangent.
+
+### Standardiser/normaliser sans casser une colonne catégorielle
+`select_dtypes` vire la target (souvent du texte) avant le calcul, il faut la rajouter après si tu en as besoin pour `hue` :
+```python
+def standardize_data(x: pd.DataFrame) -> pd.DataFrame:
+    x = x.select_dtypes(include="number")
+    return (x - x.mean()) / x.std()
+
+df_std = standardize_data(df)
+df_std["target_col"] = df["target_col"]  # rajoutée telle quelle, jamais standardisée
 ```
 
 ### Grille de subplots (Figure vs Axes)
@@ -225,6 +263,11 @@ sum([x for x in liste if x > 3])    # fonctionne aussi mais moins économe
 - `sys.path.append(...)` doit être exécuté **avant** tout `import` qui en dépend (l'ordre des lignes compte)
 - `Path` vs `str` : une fonction qui appelle `.exists()` sur son argument attend un `Path`, pas une string brute — convertir avec `Path(arg)` en entrée si la fonction doit accepter les deux
 - `\t` (tabulation) a une largeur variable selon le mot précédent — pour aligner des colonnes, utiliser le formatage `{var:<15}` (largeur fixe) plutôt que `\t`
+- `df[liste_de_colonnes]` sélectionne plusieurs colonnes d'un coup — pas la peine de faire un generator/boucle pour ça
+- `array.flatten()` retourne une **copie**, ne modifie pas en place — il faut réassigner (`axes = axes.flatten()`), sinon l'indexation `axes[i]` plante sur une grille 2D
+- `pd.DataFrame` sans parenthèses référence la classe elle-même, pas une instance — toujours `pd.DataFrame()`
+- `enumerate(df.columns)` donne des tuples `(index, nom)` typés `Hashable` par les type checkers — itérer directement sur une liste de strings connue évite le bruit de typage
+- Standardiser/normaliser un DataFrame entier avec une colonne catégorielle plante sur `.mean()`/`.std()` (`TypeError` sur dtype string) — toujours `select_dtypes(include="number")` avant
 
 ---
 
@@ -240,5 +283,4 @@ pip install -r requirements.txt
 pip install jupyter                # si pas déjà dans requirements.txt
 jupyter notebook                   # ouvre le file browser
 jupyter notebook training.ipynb    # ouvre directement un fichier
-
 ```
